@@ -1,0 +1,11 @@
+Càlcul de multiplicacions de matrius disperses. Es fa de tres maneres. amb la matriu A dispersa, amb les matrius A i B disperses i amb les matrius A,B i C disperses.
+
+Temps d'execició sequencial amb les opcions "-O"
+
+5000 X 5000 -> 68.6 segons
+
+    Es programarà amb OpenMP
+    Speedup mínim  a GAT: 2.5
+    La versió paral·lela ha de donar el mateix resultat de validació.
+
+L'execució a teen de 5000 x 5000 triga 24.8 segons
