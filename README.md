@@ -1,10 +1,4 @@
-# CPM PRAC2
-
-## Docker environment:
-```sh
-$ docker build . -t cpm
-$ docker run -v $(pwd):/home -it cpm /bin/sh
-```
+# CPM PRAC4
 
 ## Testing local environment:
 ```sh
@@ -29,9 +23,4 @@ $ ssh -X -p 8022 $URV_USER@localhost
 Copy files to zoo:
 ```sh
 $ scp -P 8022 fitxer $URV_USER@localhost:.
-```
-
-Calculate speedup N times and create average:
-```sh
-$ sh speedup.sh N
 ```
