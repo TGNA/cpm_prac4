@@ -37,7 +37,7 @@ tmd * b = (tmd*)pb;
   else return (a->i - b->i);
 }
 
-main()
+int main()
 {
     int i,j,k,neleC;
     
@@ -49,7 +49,7 @@ main()
     {
         AD[k].i=rand()%(N-1);
         AD[k].j=rand()%(N-1);
-        AD[k].v=rand()%100;
+        AD[k].v=rand()%100 + 1;
         while (A[AD[k].i][AD[k].j]) {
             if(AD[k].i < AD[k].j)
                 AD[k].i = (AD[k].i + 1)%N;
@@ -64,7 +64,7 @@ main()
     {
         BD[k].i=rand()%(N-1);
         BD[k].j=rand()%(N-1);
-        BD[k].v=rand()%100;
+        BD[k].v=rand()%100 + 1;
         while (B[BD[k].i][BD[k].j]) {
             if(BD[k].i < BD[k].j)
                 BD[k].i = (BD[k].i + 1)%N;

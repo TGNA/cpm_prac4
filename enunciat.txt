@@ -1,11 +1,20 @@
 Càlcul de multiplicacions de matrius disperses. Es fa de tres maneres. amb la matriu A dispersa, amb les matrius A i B disperses i amb les matrius A,B i C disperses.
 
-Temps d'execició sequencial amb les opcions "-O"
+N=5000
 
-5000 X 5000 -> 68.6 segons
+Ara el temps seqüencial és de 61,5 segons.
 
-    Es programarà amb OpenMP
-    Speedup mínim  a GAT: 2.5
-    La versió paral·lela ha de donar el mateix resultat de validació.
+Cal una modificacio a les linies de codi 52 i 67 on es sumara a la variable 'v' un 1, quedant de la seguent manera:
 
-L'execució a teen de 5000 x 5000 triga 24.8 segons
+AD[k].v=rand()%100 + 1;
+
+BD[k].v=rand()%100 + 1;
+
+Es programarà amb MPI
+L'execució es farà per els nombre de processos que indica la taula (11 execucions).
+S'ha de respectar les dades que surten per la sortida estandard i en la versió paral·lela ha de donar el mateix resultat. (NelecC: 9840962 i Suma: 31844954756)
+La matriu CD resultant ha de quedar emmagatzemada sencera al proces 0.
+L'speedup en qualsevol configuració ha de ser superior a 1.5 (es podria excepcionalment rebaixar per les configuracions de 64 i 128 processos)
+L'speedup harmònic ha de ser superior a 3.0
+
+La execucio sequencial en el Odroids triga 163 segons
