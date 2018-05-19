@@ -37,15 +37,14 @@ int cmp_col(const void *pa, const void *pb)
     else return (a->i - b->i);
 }
 
-int main(int na,char* args[])
+int main(int na, char* args[])
 {
+    int i, j, k, neleC, neleC_aux;
     int el_meu_rank, p;
     
     MPI_Init(&na, &args);
     MPI_Comm_size(MPI_COMM_WORLD, &p);
     MPI_Comm_rank(MPI_COMM_WORLD, &el_meu_rank);
-
-    int i, j, k, neleC, neleC_part;
 
     bzero(C, sizeof(int)*(N*N));
     bzero(C1, sizeof(int)*(N*N));
@@ -93,38 +92,43 @@ int main(int na,char* args[])
       jBD[j] = k;
     }
 
-    int sN = N / p;
+    int buff_size = N / p;
+    int extra_size = N % p;
+    int origin = 0, end = 0;
+    int iterations[p], elements[p], offsets[p];
 
-    int sizes[p];
-    int sizes2[p];
-    int offsets[p];
-
-    bzero(sizes, sizeof(int)*(p));
-    bzero(sizes2, sizeof(int)*(p));
-    bzero(offsets, sizeof(int)*(p));
-
-    for (i = 0; i < p; i++) 
+    for (i = 0; i < p; i++)
     {
-        sizes2[i] = sN;
-        sizes[i] = sN*N;
-        offsets[i] = sN*N*i;
+        iterations[i] = buff_size;
+        //if (i < extra_size) 
+        //    iterations[i] = iterations[i] + 1;
+        elements[i] = iterations[i] * N;
+        offsets[i] = elements[i] * i;
     }
-    sizes2[p-1] = N - sN*(p-1);
-    sizes[p-1] = sizes2[p-1] * N;
-    
-    int inin = sN*el_meu_rank;
+    if (extra_size != 0)
+    {   
+        iterations[p-1] += extra_size;
+        elements[p-1] = iterations[p-1] * N;
+    }
+    origin = buff_size * el_meu_rank;
+    end = origin + iterations[el_meu_rank];
+    /*for (i = 0; i < el_meu_rank; i++)
+        origin += iterations[i];
+    end = origin + iterations[el_meu_rank];
+    */
+
     //Matriu dispersa per matriu
-    for(i = inin; i < inin+sizes2[el_meu_rank]; i++)
+    for(i = origin; i < end; i++)
         for (k = 0; k < ND; k++)
             C1[i][AD[k].i] += AD[k].v * B[AD[k].j][i];
 
-    MPI_Gatherv(&C1[inin][0], sizes[el_meu_rank], MPI_INT, &C1[0][0], sizes, offsets, MPI_INT, 0, MPI_COMM_WORLD);  
+    MPI_Gatherv(&C1[origin][0], elements[el_meu_rank], MPI_INT, &C1[0][0], elements, offsets, MPI_INT, 0, MPI_COMM_WORLD);  
 
     //Matriu dispersa per matriu dispersa
     for (j = 0; j < N; j++)
         VBcol[j] = 0;
 
-    for(i = inin; i < inin+sizes2[el_meu_rank]; i++)
+    for(i = origin; i < end; i++)
     {
         // expandir Columna de B[*][i]
         for (k=jBD[i];k<jBD[i+1];k++)
@@ -139,19 +143,19 @@ int main(int na,char* args[])
             VBcol[j] = 0;
     }
 
-    MPI_Gatherv(&C2[inin][0], sizes[el_meu_rank], MPI_INT, &C2[0][0], sizes, offsets, MPI_INT, 0, MPI_COMM_WORLD);
-        
+    MPI_Gatherv(&C2[origin][0], elements[el_meu_rank], MPI_INT, &C2[0][0], elements, offsets, MPI_INT, 0, MPI_COMM_WORLD);
+
     //Matriu dispersa per matriu dispersa -> dona matriu Dispersa
     neleC = 0;
-    neleC_part = 0;
+    neleC_aux = 0;
     for (j = 0; j < N; j++)
         VBcol[j] = VCcol[j] = 0;
 
-    for(i = inin; i < inin+sizes2[el_meu_rank]; i++)
+    for(i = origin; i < end; i++)
     {
         // expandir Columna de B[*][i]
         for (k = jBD[i]; k < jBD[i+1]; k++)
-                VBcol[BD[k].i] = BD[k].v;
+            VBcol[BD[k].i] = BD[k].v;
         // Calcul de tota una columna de C
         for (k = 0; k < ND; k++)
             VCcol[AD[k].i] += AD[k].v * VBcol[AD[k].j];
@@ -161,29 +165,30 @@ int main(int na,char* args[])
             VBcol[j] = 0;
             // Compressio de C
             if (VCcol[j])
-             {
-                CD[neleC_part].i = j;
-                CD[neleC_part].j = i;
-                CD[neleC_part].v = VCcol[j];
+            {
+                CD[neleC_aux].i = j;
+                CD[neleC_aux].j = i;
+                CD[neleC_aux].v = VCcol[j];
                 VCcol[j] = 0;
-                neleC_part++;
-             }
+                neleC_aux++;
+            }
         }
     }
 
-    int counts[p], disps[p];
-    bzero(counts, sizeof(int)*p);
-    bzero(disps, sizeof(int)*p);
-    MPI_Reduce(&neleC_part, &neleC, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD); //neleC al proces 0 te la suma total de tots els processos
-    neleC_part *= 3; //Struct de 3 enters
+    int neleCs[p];
+    bzero(neleCs, p*sizeof(int));
+
+    MPI_Reduce(&neleC_aux, &neleC, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    neleC_aux *= 3; // Struct de 3 ints
     
-    MPI_Gather(&neleC_part, 1, MPI_INT, counts, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Gather(&neleC_aux, 1, MPI_INT, neleCs, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    offsets[0] = 0;
     for(i = 1; i < p; i++)
     {
-        disps[i] = counts[i-1] + disps[i-1]; //Calculem posicions d'on escriure a la taula
+        offsets[i] = neleCs[i-1] + offsets[i-1];
     }
 
-    MPI_Gatherv(CD, neleC_part, MPI_INT, CD, counts, disps, MPI_INT, 0, MPI_COMM_WORLD); 
+    MPI_Gatherv(CD, neleC_aux, MPI_INT, CD, neleCs, offsets, MPI_INT, 0, MPI_COMM_WORLD); 
 
     if (el_meu_rank == 0) 
     {
@@ -199,13 +204,11 @@ int main(int na,char* args[])
         {
             Suma += CD[k].v;
             if (CD[k].v != C1[CD[k].j][CD[k].i])
-                printf("Diferencies C1 i CD a i:%d,j:%d,v%d, k:%d, vd:%d\n", CD[k].i, CD[k].j, C1[CD[k].i][CD[k].j], k, CD[k].v);
+                printf("Diferencies C1 i CD a i:%d,j:%d,v:%d, k:%d, vd:%d\n", CD[k].i, CD[k].j, C1[CD[k].i][CD[k].j], k, CD[k].v);
         }
          
         printf ("\nNumero elements de la matriu dispersa C %d\n", neleC);
         printf("Suma dels elements de C %lld \n", Suma);
-        //assert(neleC == 9840962);
-        //assert(Suma == 31844954756);
     }
     MPI_Finalize();
     return (0);
